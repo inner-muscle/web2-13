@@ -24,6 +24,43 @@ router.use(express.static(path.resolve(__dirname, 'client')));
 var messages = [];
 var sockets = [];
 
+
+//ここから
+var mongoose = require('mongoose');
+//スキーマ定義
+var PostSchema = new mongoose.Schema({
+  name: String,
+  text: String
+});
+//モデルとして登録
+var Post = mongoose.model('Post',PostSchema);
+//mongodbに接続
+mongoose.connect('mongodb://localhost:27017/chat_data',
+  {useMongoClient: true},
+  //コールバックでエラー時の処理が書ける
+  function(err){
+    if(err){
+      console.log(err);
+    }else{
+      console.log('connection success!');
+    }
+  });
+//findしてDBの値を表示
+Post.find({},function(err,docs){
+  if(!err){
+    console.log("num of item => "+ docs.length);
+    for(var i=0;i<docs.length;i++){
+      console.log(docs[i].name);
+      console.log(docs[i].text);
+      var doc = docs[i];
+      //メッセージ情報を格納
+      messages.push(doc);
+    }
+    console.log("find!");
+  }else{
+    console.log("not find!");
+  }
+});
 io.on('connection', function (socket) {
     messages.forEach(function (data) {
       socket.emit('message', data);
@@ -47,11 +84,26 @@ io.on('connection', function (socket) {
           name: name,
           text: text
         };
-
+//ここから
+    
+    //DBに登録
+    var post = new Post();
+    post.name = name;
+    post.text = text;
+    post.save(function(err){
+      if(!err){
+        console.log("saved! name:" + name + ",text" + text);
+      }
+    });
+    
+    //ここまで
         broadcast('message', data);
         messages.push(data);
       });
     });
+    
+    
+    
 
     socket.on('identify', function (name) {
       socket.set('name', String(name || 'Anonymous'), function (err) {
